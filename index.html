@@ -647,6 +647,7 @@
 </button>
 
 <script>
+  // 1. ระบบแสดงแอนิเมชันรูปภาพและข้อความ
   const els = document.querySelectorAll('.reveal');
   if ('IntersectionObserver' in window) {
     const io = new IntersectionObserver((entries) => {
@@ -659,34 +660,45 @@
     els.forEach(el => el.classList.add('in'));
   }
 
-  // background music (soft volume, tries to autoplay on entry; falls back to first user interaction if the browser blocks it)
+  // ----------------------------------------------------
+  // 2. ระบบเล่นเพลงทันทีที่นิ้วสัมผัสหน้าจอครั้งแรก
+  // ----------------------------------------------------
   const music = document.getElementById('bgMusic');
   const musicBtn = document.getElementById('musicToggle');
+  
   music.volume = 0.10;
   music.preload = 'auto';
 
-  function startMusic() {
-    music.play().then(() => {
-      musicBtn.classList.add('playing');
-    }).catch(() => {
-      // browser blocked autoplay; will retry on first user interaction below
-    });
+  let hasStarted = false;
+
+  function playMusicOnFirstTouch() {
+    if (!hasStarted) {
+      music.play().then(() => {
+        musicBtn.classList.add('playing');
+        hasStarted = true;
+      }).catch((error) => {
+        console.log("Auto-play prevented", error);
+      });
+      
+      // ถอดตัวดักจับออก จะได้ไม่ทำงานซ้ำเวลาแตะครั้งต่อๆ ไป
+      document.removeEventListener('touchstart', playMusicOnFirstTouch);
+      document.removeEventListener('click', playMusicOnFirstTouch);
+    }
   }
 
-  // try right away
-  startMusic();
+  // ดักจับการสัมผัสจอครั้งแรก (แค่แตะนิ้วจะเลื่อนจอ เพลงก็ดังเลย)
+  document.addEventListener('touchstart', playMusicOnFirstTouch, { once: true, passive: true });
+  document.addEventListener('click', playMusicOnFirstTouch, { once: true, passive: true });
 
-  // if autoplay was blocked, most browsers allow it after any user gesture
-  ['click', 'touchstart', 'scroll', 'keydown'].forEach(evt => {
-    document.addEventListener(evt, function onFirstInteract() {
-      if (music.paused) startMusic();
-    }, { once: true, passive: true });
-  });
-
-  musicBtn.addEventListener('click', () => {
+  // ----------------------------------------------------
+  // 3. ระบบปุ่มเปิด/ปิดเพลงมุมขวาล่าง 
+  // ----------------------------------------------------
+  musicBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // กันไม่ให้ไปตีกับการแตะหน้าจอ
     if (music.paused) {
       music.play().catch(() => {});
       musicBtn.classList.add('playing');
+      hasStarted = true;
     } else {
       music.pause();
       musicBtn.classList.remove('playing');
