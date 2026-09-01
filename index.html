@@ -675,7 +675,10 @@
   let hasStarted = false;
   let isUserPaused = false;
 
-  function attemptPlay() {
+  function attemptPlay(e) {
+    // [แก้บั๊ก] ถ้าเอานิ้วแตะโดนปุ่มเพลงพอดี ให้ข้ามฟังก์ชันนี้ไปเลย ปล่อยให้ปุ่มทำงานเอง (กันบั๊กแตะแล้วหยุดทันทีบนมือถือ)
+    if (e && e.target.closest('#musicToggle')) return;
+
     if (hasStarted || isUserPaused) return;
 
     music.play().then(() => {
