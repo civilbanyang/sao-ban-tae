@@ -661,51 +661,48 @@
   }
 
   // ----------------------------------------------------
-  // 2. ระบบเพลง: เล่นเมื่อแตะครั้งแรก + ไม่เล่นตอนสลับแอป
+  // 2. ระบบเพลง: เล่นเมื่อแตะ/เลื่อนจอครั้งแรก + ไม่เล่นตอนสลับแอป
   // ----------------------------------------------------
   const music = document.getElementById('bgMusic');
   const musicBtn = document.getElementById('musicToggle');
-  
+
   music.volume = 0.10;
   music.preload = 'auto';
 
-  let hasStarted = false;    // เช็คว่าเพลงเคยเริ่มเล่นหรือยัง
-  let isUserPaused = false;  // เช็คว่าผู้ใช้จงใจกดปุ่มปิดเพลงเองหรือไม่
+  let hasStarted = false;
+  let isUserPaused = false;
 
-  // ฟังก์ชันเริ่มเล่นเพลงเมื่อแตะจอครั้งแรก
-  function playMusicOnFirstTouch() {
-    if (!hasStarted && !isUserPaused) {
+  function attemptPlay() {
+    if (hasStarted || isUserPaused) return;
+
+    music.play().then(() => {
+      musicBtn.classList.add('playing');
+      hasStarted = true;
+    }).catch(() => {
+      // เล่นไม่ได้ก็แค่ปล่อยไว้ ผู้ใช้กดปุ่มเองได้
+    });
+  }
+
+  document.addEventListener('touchstart', attemptPlay, { passive: true });
+  document.addEventListener('click', attemptPlay);
+
+  // ----------------------------------------------------
+  // 3. ปุ่มเปิด/ปิดเพลงมุมขวาล่าง
+  // ----------------------------------------------------
+  musicBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (music.paused) {
       music.play().then(() => {
         musicBtn.classList.add('playing');
         hasStarted = true;
-      }).catch((error) => {
-        console.log("Auto-play prevented", error);
+        isUserPaused = false;
+      }).catch(() => {
+        alert('กรุณาเปิดลิงก์นี้ด้วย Chrome หรือ Safari เพื่อฟังเพลงประกอบ');
       });
-      
-      // ถอดตัวดักจับออก จะได้ไม่ทำงานซ้ำเวลาแตะครั้งต่อๆ ไป
-      document.removeEventListener('touchstart', playMusicOnFirstTouch);
-      document.removeEventListener('click', playMusicOnFirstTouch);
-    }
-  }
-
-  // ดักจับการสัมผัสจอครั้งแรก
-  document.addEventListener('touchstart', playMusicOnFirstTouch, { once: true, passive: true });
-  document.addEventListener('click', playMusicOnFirstTouch, { once: true, passive: true });
-
-  // ----------------------------------------------------
-  // 3. ระบบปุ่มเปิด/ปิดเพลงมุมขวาล่าง 
-  // ----------------------------------------------------
-  musicBtn.addEventListener('click', (e) => {
-    e.stopPropagation(); // กันไม่ให้ไปตีกับการแตะหน้าจอ
-    if (music.paused) {
-      music.play().catch(() => {});
-      musicBtn.classList.add('playing');
-      hasStarted = true;
-      isUserPaused = false; // ผู้ใช้กดให้เล่น
     } else {
       music.pause();
       musicBtn.classList.remove('playing');
-      isUserPaused = true; // จดจำไว้ว่าผู้ใช้ตั้งใจกดปิดเอง
+      isUserPaused = true;
     }
   });
 
@@ -714,14 +711,9 @@
   // ----------------------------------------------------
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
-      // เมื่อผู้ใช้พับหน้าจอ, สลับแอป, หรือเปลี่ยนแท็บ -> สั่งให้เพลงหยุด
-      music.pause(); 
-    } else {
-      // เมื่อผู้ใช้สลับกลับมาดูเว็บเราอีกครั้ง
-      // จะเล่นเพลงต่อก็ต่อเมื่อ (1) เพลงเคยเล่นแล้ว และ (2) ผู้ใช้ไม่ได้จงใจกดปิดเอง
-      if (hasStarted && !isUserPaused) {
-        music.play().catch(() => {});
-      }
+      music.pause();
+    } else if (hasStarted && !isUserPaused) {
+      music.play().catch(() => {});
     }
   });
 </script>
