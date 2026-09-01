@@ -661,7 +661,7 @@
   }
 
   // ----------------------------------------------------
-  // 2. ระบบเล่นเพลงทันทีที่นิ้วสัมผัสหน้าจอครั้งแรก
+  // 2. ระบบเพลง: เล่นเมื่อแตะครั้งแรก + ไม่เล่นตอนสลับแอป
   // ----------------------------------------------------
   const music = document.getElementById('bgMusic');
   const musicBtn = document.getElementById('musicToggle');
@@ -669,10 +669,12 @@
   music.volume = 0.10;
   music.preload = 'auto';
 
-  let hasStarted = false;
+  let hasStarted = false;    // เช็คว่าเพลงเคยเริ่มเล่นหรือยัง
+  let isUserPaused = false;  // เช็คว่าผู้ใช้จงใจกดปุ่มปิดเพลงเองหรือไม่
 
+  // ฟังก์ชันเริ่มเล่นเพลงเมื่อแตะจอครั้งแรก
   function playMusicOnFirstTouch() {
-    if (!hasStarted) {
+    if (!hasStarted && !isUserPaused) {
       music.play().then(() => {
         musicBtn.classList.add('playing');
         hasStarted = true;
@@ -686,7 +688,7 @@
     }
   }
 
-  // ดักจับการสัมผัสจอครั้งแรก (แค่แตะนิ้วจะเลื่อนจอ เพลงก็ดังเลย)
+  // ดักจับการสัมผัสจอครั้งแรก
   document.addEventListener('touchstart', playMusicOnFirstTouch, { once: true, passive: true });
   document.addEventListener('click', playMusicOnFirstTouch, { once: true, passive: true });
 
@@ -699,9 +701,27 @@
       music.play().catch(() => {});
       musicBtn.classList.add('playing');
       hasStarted = true;
+      isUserPaused = false; // ผู้ใช้กดให้เล่น
     } else {
       music.pause();
       musicBtn.classList.remove('playing');
+      isUserPaused = true; // จดจำไว้ว่าผู้ใช้ตั้งใจกดปิดเอง
+    }
+  });
+
+  // ----------------------------------------------------
+  // 4. ระบบตรวจจับการสลับแอป (Page Visibility API)
+  // ----------------------------------------------------
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      // เมื่อผู้ใช้พับหน้าจอ, สลับแอป, หรือเปลี่ยนแท็บ -> สั่งให้เพลงหยุด
+      music.pause(); 
+    } else {
+      // เมื่อผู้ใช้สลับกลับมาดูเว็บเราอีกครั้ง
+      // จะเล่นเพลงต่อก็ต่อเมื่อ (1) เพลงเคยเล่นแล้ว และ (2) ผู้ใช้ไม่ได้จงใจกดปิดเอง
+      if (hasStarted && !isUserPaused) {
+        music.play().catch(() => {});
+      }
     }
   });
 </script>
