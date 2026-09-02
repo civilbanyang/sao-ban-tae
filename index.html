@@ -639,6 +639,10 @@
   </div>
 </footer>
 
+  <div id="soundBanner" style="display:none; position:fixed; bottom:70px; right:15px; z-index:9999; background:rgba(51,51,51,0.92); color:#fff; padding:8px 14px; border-radius:20px; font-size:12px; max-width:190px; text-align:right; line-height:1.5; box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+  แอปนี้ไม่รองรับเสียงอัตโนมัติ<br>กรุณาแตะปุ่มเพลงเพื่อเปิดฟัง
+</div>
+
 <!-- ============ BACKGROUND MUSIC ============ -->
 <!-- วางไฟล์เพลงชื่อ music.mp3 ไว้ในโฟลเดอร์เดียวกับ index.html (ดูคำแนะนำที่ README.md) -->
 <audio id="bgMusic" loop preload="none">
@@ -664,33 +668,53 @@
   }
 
   // ----------------------------------------------------
-  // 2. ระบบเพลง: เล่นเมื่อแตะ/เลื่อนจอครั้งแรก + ไม่เล่นตอนสลับแอป
+  // 2. ระบบเพลง
   // ----------------------------------------------------
   const music = document.getElementById('bgMusic');
   const musicBtn = document.getElementById('musicToggle');
+  const soundBanner = document.getElementById('soundBanner');
 
   music.volume = 0.10;
   music.preload = 'auto';
 
   let hasStarted = false;
   let isUserPaused = false;
+  let attemptInProgress = false; // กันเรียก play() ซ้อนกัน
+
+  // ตรวจสอบว่าเปิดผ่านแอปพลิเคชันที่มักไม่รองรับเสียงอัตโนมัติหรือไม่
+  const ua = navigator.userAgent;
+  const isInAppBrowser = /Line\//i.test(ua) || /FBAN|FBAV/i.test(ua) || /Instagram/i.test(ua);
+
+  if (isInAppBrowser) {
+    soundBanner.style.display = 'block';
+    soundBanner.innerHTML = 'แอปนี้ไม่รองรับเสียงอัตโนมัติ<br>กรุณาแตะปุ่มเพลงเพื่อเปิดฟัง';
+  }
 
   function attemptPlay(e) {
-    // [แก้บั๊ก] ถ้าเอานิ้วแตะโดนปุ่มเพลงพอดี ให้ข้ามฟังก์ชันนี้ไปเลย ปล่อยให้ปุ่มทำงานเอง (กันบั๊กแตะแล้วหยุดทันทีบนมือถือ)
+    // ถ้าแตะโดนปุ่มเพลงพอดี ให้ปุ่มจัดการเอง ไม่ต้องทำงานซ้ำ
     if (e && e.target.closest('#musicToggle')) return;
+    if (hasStarted || isUserPaused || attemptInProgress) return;
 
-    if (hasStarted || isUserPaused) return;
+    attemptInProgress = true;
 
     music.play().then(() => {
       musicBtn.classList.add('playing');
       hasStarted = true;
+      soundBanner.style.display = 'none';
     }).catch(() => {
-      // เล่นไม่ได้ก็แค่ปล่อยไว้ ผู้ใช้กดปุ่มเองได้
+      if (!isInAppBrowser) {
+        soundBanner.style.display = 'block';
+        soundBanner.innerHTML = 'กรุณาแตะปุ่มเพลง<br>เพื่อเปิดเสียงประกอบ';
+      }
+    }).finally(() => {
+      attemptInProgress = false;
     });
   }
 
-  document.addEventListener('touchstart', attemptPlay, { passive: true });
-  document.addEventListener('click', attemptPlay);
+  // ใช้ capture: true เพื่อตรวจจับการแตะจอได้ก่อนเสมอ
+  // ป้องกันกรณีองค์ประกอบอื่นในหน้าเว็บดักเหตุการณ์ไว้ก่อน
+  document.addEventListener('touchstart', attemptPlay, { passive: true, capture: true });
+  document.addEventListener('click', attemptPlay, { capture: true });
 
   // ----------------------------------------------------
   // 3. ปุ่มเปิด/ปิดเพลงมุมขวาล่าง
@@ -702,8 +726,9 @@
         musicBtn.classList.add('playing');
         hasStarted = true;
         isUserPaused = false;
+        soundBanner.style.display = 'none';
       }).catch(() => {
-        alert('กรุณาเปิดลิงก์นี้ด้วย Chrome หรือ Safari เพื่อฟังเพลงประกอบ');
+        alert('ไม่สามารถเปิดเสียงได้ กรุณาเปิดลิงก์นี้ผ่าน Chrome หรือ Safari');
       });
     } else {
       music.pause();
@@ -713,7 +738,7 @@
   });
 
   // ----------------------------------------------------
-  // 4. ระบบตรวจจับการสลับแอป (Page Visibility API)
+  // 4. ระบบตรวจจับการสลับแอปพลิเคชัน (Page Visibility API)
   // ----------------------------------------------------
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
